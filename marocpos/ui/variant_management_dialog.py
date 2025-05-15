@@ -284,8 +284,8 @@ class VariantManagementDialog(QDialog):
             QMessageBox.warning(self, "Aucune variante", "Aucun attribut ou valeur sélectionné.")
             return
             
-        # Generate combinations
-        combinations = ProductAttribute.generate_variant_combinations(attr_values)
+        # Generate combinations with the dict approach
+        combinations = ProductAttribute.generate_variant_combinations_dict(attr_values)
         
         # Store as list of variant dictionaries
         self.variants = []

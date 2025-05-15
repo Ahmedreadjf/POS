@@ -515,19 +515,23 @@ class ProductAttribute:
         return False
     
     @staticmethod
-    def generate_variant_combinations(product_id):
+    def generate_variant_combinations(product_id_or_attributes):
         """
         Generate all possible variant combinations for a product
         
         Args:
-            product_id: The product ID to generate variants for
+            product_id_or_attributes: Either a product ID or a dictionary of attribute names to values
             
         Returns:
-            A list of variant definitions, each with:
-                - attribute_value_ids: list of template attribute value IDs
-                - price_extra: sum of all price extras
-                - attributes: dict of attribute name -> value mappings
+            A list of variant definitions
         """
+        # Check if we received a dict of attributes instead of a product_id
+        if isinstance(product_id_or_attributes, dict):
+            # We received attributes_values directly, use the legacy dictionary method
+            return ProductAttribute.generate_variant_combinations_dict(product_id_or_attributes)
+            
+        # Otherwise, we have a product_id, proceed with the new implementation    
+        product_id = product_id_or_attributes
         conn = get_connection()
         if conn:
             try:
@@ -583,7 +587,7 @@ class ProductAttribute:
         return []
         
     @staticmethod
-    def generate_variant_combinationsDict(attributes_values):
+    def generate_variant_combinations_dict(attributes_values):
         """
         Generate all possible combinations of attribute values
         
