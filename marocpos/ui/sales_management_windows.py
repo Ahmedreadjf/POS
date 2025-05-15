@@ -702,17 +702,30 @@ class SalesManagementWindow(QWidget):
             for key in ['attributes', 'attribute_values']:
                 if variant.get(key):
                     try:
-                        # Handle both string JSON and direct dictionary representation
+                        # Handle different data structures
                         if isinstance(variant[key], str):
-                            parsed_values = json.loads(variant[key])
-                            attr_values = parsed_values
-                            # Store the parsed result back in the variant
-                            variant[key] = parsed_values
+                            # Try to parse as JSON
+                            try:
+                                parsed_values = json.loads(variant[key])
+                                attr_values = parsed_values
+                                # Store the parsed result back in the variant for future use
+                                variant[key] = parsed_values
+                                # Also store in the other key for compatibility
+                                other_key = 'attributes' if key == 'attribute_values' else 'attribute_values'
+                                variant[other_key] = parsed_values
+                            except json.JSONDecodeError:
+                                # Not valid JSON, use as a simple string-value dictionary
+                                attr_values = {key: variant[key]}
                         else:
                             attr_values = variant[key]
-                        
+                            # Copy to other key for compatibility
+                            other_key = 'attributes' if key == 'attribute_values' else 'attribute_values'
+                            if other_key not in variant or not variant[other_key]:
+                                variant[other_key] = attr_values
+                    
                         # If we got values, no need to check the other key
                         if attr_values:
+                            print(f"Successfully parsed {key}: {attr_values}")
                             break
                     except Exception as e:
                         print(f"Error parsing variant {key}: {e}")

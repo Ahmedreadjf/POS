@@ -266,12 +266,41 @@ class Product:
                 """, (product_id,))
                 variants = cursor.fetchall()
                 
-                # Convert attribute_values from JSON string to dict
-                return [{
-                    **dict(variant),
-                    'attribute_values': json.loads(variant['attribute_values'])
-                    if variant['attribute_values'] else {}
-                } for variant in variants]
+                # Convert variants to a more robust format
+                result = []
+                for variant in variants:
+                    variant_dict = dict(variant)
+                    
+                    # Handle attribute_values with better error protection
+                    if variant_dict.get('attribute_values'):
+                        try:
+                            if isinstance(variant_dict['attribute_values'], str):
+                                parsed_values = json.loads(variant_dict['attribute_values'])
+                                # Store in both attribute_values and attributes for compatibility
+                                variant_dict['attribute_values'] = parsed_values
+                                variant_dict['attributes'] = parsed_values.copy() if isinstance(parsed_values, dict) else {}
+                            else:
+                                # If it's already a dict/object, make sure we have it in both places
+                                variant_dict['attributes'] = variant_dict['attribute_values'].copy() if isinstance(variant_dict['attribute_values'], dict) else {}
+                        except Exception as e:
+                            print(f"Error parsing variant attributes: {e}")
+                            # Provide empty dictionaries as fallback
+                            variant_dict['attribute_values'] = {}
+                            variant_dict['attributes'] = {}
+                    else:
+                        # Ensure both attribute keys exist even if empty
+                        variant_dict['attribute_values'] = {}
+                        variant_dict['attributes'] = {}
+                        
+                    # Add explicit debugging output
+                    print(f"Returning variant: {variant_dict['id']}, attributes: {variant_dict.get('attributes')}, attribute_values: {variant_dict.get('attribute_values')}")
+                    
+                    result.append(variant_dict)
+                
+                return result
+            except Exception as e:
+                print(f"Error getting variants: {e}")
+                return []
             finally:
                 conn.close()
         return []
