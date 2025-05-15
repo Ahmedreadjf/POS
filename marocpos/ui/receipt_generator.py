@@ -3,8 +3,8 @@ from PyQt5.QtWidgets import (
     QTabWidget, QScrollArea, QWidget, QMessageBox, QFileDialog
 )
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPixmap, QPainter, QPrinter, QFont
-from PyQt5.QtPrintSupport import QPrintDialog
+from PyQt5.QtGui import QPixmap, QPainter, QFont
+from PyQt5.QtPrintSupport import QPrintDialog, QPrinter
 from models.sales import Sales
 from database import get_connection
 import os
