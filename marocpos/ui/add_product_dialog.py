@@ -100,10 +100,20 @@ class AddProductDialog(QDialog):
         self.variant_frame = QFrame()
         variant_frame_layout = QVBoxLayout()
         
-        # Predefined attributes
+        # Attributes from database
         self.variant_attributes = []
-        predefined_attributes = ["Taille", "Couleur", "Matériau", "Style"]
         
+        # Load custom attributes from database
+        from models.product_attribute import ProductAttribute
+        custom_attributes = ProductAttribute.get_all_attributes()
+        
+        # If no custom attributes, provide some predefined ones as fallback
+        predefined_attributes = []
+        if custom_attributes:
+            predefined_attributes = [attr['name'] for attr in custom_attributes]
+        else:
+            predefined_attributes = ["Taille", "Couleur", "Matériau", "Style"]
+            
         # Attribute checkbox group
         attr_group = QGroupBox("Attributs disponibles")
         attr_layout = QVBoxLayout()
