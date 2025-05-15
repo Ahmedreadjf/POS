@@ -135,7 +135,9 @@ class Product:
                 """
                 
                 cursor.execute(query)
-                return cursor.fetchall()
+                rows = cursor.fetchall()
+                # Convert the sqlite3.Row objects to dictionaries with .get() method
+                return [dict(row) for row in rows]
             except Exception as e:
                 print(f"Error in get_all_products: {e}")
                 return []
@@ -208,6 +210,7 @@ class Product:
                 # Process variant attributes if present
                 result = []
                 for product in products:
+                    # First convert Row to dict to ensure .get() method is available
                     product_dict = dict(product)
                     if product_dict.get('variant_attributes'):
                         try:

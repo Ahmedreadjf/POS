@@ -12,7 +12,17 @@ class DatabaseManager:
         """Create and return a connection to the SQLite database."""
         try:
             conn = sqlite3.connect(cls.DB_PATH)
-            conn.row_factory = sqlite3.Row
+            
+            # Configure row_factory to return dictionaries
+            def dict_factory(cursor, row):
+                d = {}
+                for idx, col in enumerate(cursor.description):
+                    d[col[0]] = row[idx]
+                return d
+                
+            # Use our dict_factory instead of sqlite3.Row
+            conn.row_factory = dict_factory
+            
             return conn
         except sqlite3.Error as e:
             print(f"Error connecting to database: {e}")
