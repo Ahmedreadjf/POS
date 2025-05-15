@@ -324,7 +324,7 @@ class ProductManagementWindow(QWidget):
         """Open add product dialog"""
         try:
             from .add_product_dialog import AddProductDialog
-            from .product_helpers import add_product_reliable
+            from models.product import Product
             
             dialog = AddProductDialog(self)
             
@@ -332,10 +332,8 @@ class ProductManagementWindow(QWidget):
                 # Get the product data from the dialog
                 product_data = dialog.get_product_data()
                 
-                # Add the product to the database
-                product_id = add_product_reliable(**product_data)
-                
-                if product_id:
+                # Add the product to the database using direct Product.add_product method
+                if Product.add_product(**product_data):
                     self.load_products()
                     QMessageBox.information(self, "Succès", f"Produit '{product_data['name']}' ajouté avec succès!")
                 else:
