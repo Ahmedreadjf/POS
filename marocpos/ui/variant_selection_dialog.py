@@ -166,24 +166,68 @@ class VariantSelectionDialog(QDialog):
                 variant_name = variant.get('name', '')
                 if not variant_name and attr_values:
                     try:
-                        # Handle different structures of attr_values
+                        # Ensure we have some kind of name even if we can't extract from attributes
+                        default_name = f"Variante #{variant.get('id', '')}"
+                    
+                        # Try multiple approaches to get a meaningful name
                         attr_vals = []
+                    
+                        # First try: If we have a direct 'name' field, use it
+                        if variant.get('name'):
+                            variant_name = variant['name']
+                        # Second try: Extract from attribute values dictionary
+                        elif isinstance(attr_values, dict) and attr_values:
+                            attr_vals = []
+                            # Safely extract values from the dictionary
+                            for attr_name, attr_value in attr_values.items():
+                                if attr_value:
+                                    # Handle if attr_value is another dict or a complex object
+                                    if isinstance(attr_value, dict):
+                                        # Try to extract a meaningful value from the dict
+                                        for val in attr_value.values():
+                                            if val:
+                                                attr_vals.append(str(val))
+                                                break
+                                    else:
+                                        attr_vals.append(str(attr_value))
                         
-                        # If attr_values is a dictionary with values
-                        if isinstance(attr_values, dict):
-                            attr_vals = [str(val) for val in attr_values.values() if val]
-                        # If attr_values is a list
-                        elif isinstance(attr_values, list):
+                            if attr_vals:
+                                variant_name = " / ".join(attr_vals)
+                            else:
+                                variant_name = default_name
+                        # Third try: If attr_values is a list
+                        elif isinstance(attr_values, list) and attr_values:
                             attr_vals = [str(val) for val in attr_values if val]
-                        # If it's some other structure, try to convert to string
+                            if attr_vals:
+                                variant_name = " / ".join(attr_vals)
+                            else:
+                                variant_name = default_name
+                        # Fourth try: If attr_values is a string
+                        elif isinstance(attr_values, str) and attr_values:
+                            # Try to parse it as JSON, might be a serialized structure
+                            try:
+                                parsed = json.loads(attr_values)
+                                if isinstance(parsed, dict):
+                                    attr_vals = [str(val) for val in parsed.values() if val]
+                                elif isinstance(parsed, list):
+                                    attr_vals = [str(val) for val in parsed if val]
+                                else:
+                                    attr_vals = [str(parsed)]
+                                
+                                if attr_vals:
+                                    variant_name = " / ".join(attr_vals)
+                                else:
+                                    variant_name = default_name
+                            except:
+                                # Not valid JSON, use as direct string
+                                variant_name = attr_values
+                        # Last resort: Use default name
                         else:
-                            attr_vals = [str(attr_values)]
+                            variant_name = default_name
                         
-                        # Join the values to create a name if we have values
-                        if attr_vals:
-                            variant_name = " / ".join(attr_vals)
-                        else:
-                            variant_name = f"Variante #{variant.get('id', '')}"
+                        # Debug the name generation
+                        print(f"Generated variant name: {variant_name} from attr_values: {attr_values}")
+                        
                     except Exception as e:
                         print(f"Error creating variant name: {e}")
                         variant_name = f"Variante #{variant.get('id', '')}"
