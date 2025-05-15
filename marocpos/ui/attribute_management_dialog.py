@@ -1,137 +1,42 @@
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QTableWidget, QTableWidgetItem,
-    QPushButton, QLabel, QLineEdit, QMessageBox, QHeaderView, QWidget
+    QPushButton, QLabel, QLineEdit, QMessageBox, QHeaderView, QWidget, QComboBox
 )
 from PyQt5.QtCore import Qt
 from database import get_connection
+from models.product_attribute import ProductAttribute as ProductAttributeModel
 
+# Local version for the dialog, uses the model version underneath
 class ProductAttribute:
     @staticmethod
     def get_all_attributes():
-        """Get all product attributes"""
-        conn = get_connection()
-        if conn:
-            try:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    SELECT * FROM ProductAttributes 
-                    ORDER BY name
-                """)
-                return [dict(attr) for attr in cursor.fetchall()]
-            except Exception as e:
-                print(f"Error getting attributes: {e}")
-                return []
-            finally:
-                conn.close()
-        return []
+        """Get all product attributes - uses the model implementation"""
+        return ProductAttributeModel.get_all_attributes()
     
     @staticmethod
     def get_values_by_attribute(attribute_id):
-        """Get values for a specific attribute"""
-        conn = get_connection()
-        if conn:
-            try:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    SELECT * FROM ProductAttributeValues 
-                    WHERE attribute_id = ?
-                    ORDER BY value
-                """, (attribute_id,))
-                return [dict(val) for val in cursor.fetchall()]
-            except Exception as e:
-                print(f"Error getting attribute values: {e}")
-                return []
-            finally:
-                conn.close()
-        return []
+        """Get values for a specific attribute - uses the model implementation"""
+        return ProductAttributeModel.get_attribute_values(attribute_id)
     
     @staticmethod
     def add_attribute(name, description=""):
-        """Add a new product attribute"""
-        conn = get_connection()
-        if conn:
-            try:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    INSERT INTO ProductAttributes (name, description)
-                    VALUES (?, ?)
-                """, (name, description))
-                conn.commit()
-                return cursor.lastrowid
-            except Exception as e:
-                print(f"Error adding attribute: {e}")
-                return None
-            finally:
-                conn.close()
-        return None
+        """Add a new product attribute - uses the model implementation"""
+        return ProductAttributeModel.add_attribute(name, description)
     
     @staticmethod
     def add_attribute_value(attribute_id, value):
-        """Add a value for an attribute"""
-        conn = get_connection()
-        if conn:
-            try:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    INSERT INTO ProductAttributeValues (attribute_id, value)
-                    VALUES (?, ?)
-                """, (attribute_id, value))
-                conn.commit()
-                return cursor.lastrowid
-            except Exception as e:
-                print(f"Error adding attribute value: {e}")
-                return None
-            finally:
-                conn.close()
-        return None
+        """Add a value for an attribute - uses the model implementation"""
+        return ProductAttributeModel.add_attribute_value(attribute_id, value)
     
     @staticmethod
     def delete_attribute(attribute_id):
-        """Delete an attribute and its values"""
-        conn = get_connection()
-        if conn:
-            try:
-                cursor = conn.cursor()
-                # Delete values first
-                cursor.execute("""
-                    DELETE FROM ProductAttributeValues 
-                    WHERE attribute_id = ?
-                """, (attribute_id,))
-                
-                # Then delete the attribute
-                cursor.execute("""
-                    DELETE FROM ProductAttributes 
-                    WHERE id = ?
-                """, (attribute_id,))
-                
-                conn.commit()
-                return True
-            except Exception as e:
-                print(f"Error deleting attribute: {e}")
-                return False
-            finally:
-                conn.close()
-        return False
+        """Delete an attribute and its values - uses the model implementation"""
+        return ProductAttributeModel.delete_attribute(attribute_id)
     
     @staticmethod
     def delete_attribute_value(value_id):
-        """Delete an attribute value"""
-        conn = get_connection()
-        if conn:
-            try:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    DELETE FROM ProductAttributeValues 
-                    WHERE id = ?
-                """, (value_id,))
-                conn.commit()
-                return True
-            except Exception as e:
-                print(f"Error deleting attribute value: {e}")
-                return False
-            finally:
-                conn.close()
-        return False
+        """Delete an attribute value - uses the model implementation"""
+        return ProductAttributeModel.delete_attribute_value(value_id)
 
 class AttributeManagementDialog(QDialog):
     def __init__(self, parent=None):
