@@ -45,6 +45,14 @@ def main():
         print("✅ Product tables updated successfully")
     except Exception as e:
         print(f"⚠️ Error initializing product attribute tables: {e}")
+    
+    # Initialize payment tables for multiple payment methods
+    try:
+        from models.payment import Payment
+        Payment.create_tables()
+        print("✅ Payment tables created successfully")
+    except Exception as e:
+        print(f"⚠️ Error initializing payment tables: {e}")
         
     print("Database tables created or verified.")
 

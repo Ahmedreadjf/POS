@@ -380,6 +380,22 @@ class SalesManagementWindow(QWidget):
             return
 
         try:
+            # First show the payment dialog to collect payment information
+            from .multi_payment_dialog import MultiPaymentDialog
+            payment_dialog = MultiPaymentDialog(self.current_amount, self)
+            
+            if not payment_dialog.exec_():
+                # User cancelled the payment dialog
+                return
+                
+            # Get payment data from dialog
+            payments_data = payment_dialog.get_payments_data()
+            
+            if not payments_data:
+                QMessageBox.warning(self, "Erreur", "Aucun paiement n'a été enregistré.")
+                return
+                
+            # Now process the sale with payment information
             conn = get_connection()
             cursor = conn.cursor()
             
@@ -396,19 +412,32 @@ class SalesManagementWindow(QWidget):
                         discount,
                         tax_amount,
                         final_total,
-                        payment_method
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        payment_method,
+                        payment_status
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     self.current_datetime.strftime("%Y-%m-%d %H:%M:%S"),
                     self.current_amount,
-                    self.user_id,  # Use the user_id from instance
+                    self.user_id,
                     0.0,  # discount (default to 0)
                     0.0,  # tax_amount (default to 0)
-                    self.current_amount,  # final_total (same as total_amount without discounts/taxes)
-                    "CASH"  # payment_method (default to CASH)
+                    self.current_amount,  # final_total
+                    "MULTIPLE" if len(payments_data) > 1 else payments_data[0]['method_name'],  # payment_method
+                    "COMPLETED"  # payment_status
                 ))
                 
                 sale_id = cursor.lastrowid
+                
+                # Add payment records
+                from models.payment import Payment
+                for payment in payments_data:
+                    Payment.add_sale_payment(
+                        sale_id=sale_id,
+                        payment_method_id=payment['method_id'],
+                        amount=payment['amount'],
+                        reference_number=payment.get('reference', ''),
+                        notes=payment.get('notes', '')
+                    )
                 
                 # Add sale items
                 for row in range(self.cart_table.rowCount()):
@@ -458,8 +487,14 @@ class SalesManagementWindow(QWidget):
                 
                 cursor.execute("COMMIT")
                 
-                # Show success message
-                QMessageBox.information(self, "Succès", f"Vente #{sale_id} enregistrée avec succès!")
+                # Show success message with payment details
+                if len(payments_data) > 1:
+                    payment_details = "\n".join([f"- {p['method_name']}: {p['amount']:.2f} MAD" for p in payments_data])
+                    success_message = f"Vente #{sale_id} enregistrée avec succès!\n\nPaiements:\n{payment_details}"
+                else:
+                    success_message = f"Vente #{sale_id} enregistrée avec succès!\nPaiement par {payments_data[0]['method_name']}: {payments_data[0]['amount']:.2f} MAD"
+                
+                QMessageBox.information(self, "Succès", success_message)
                 
                 # Generate receipt based on selected option
                 receipt_option = self.receipt_options.currentIndex()
@@ -500,9 +535,9 @@ class SalesManagementWindow(QWidget):
                 QMessageBox.warning(self, "Erreur", f"Erreur lors de l'enregistrement de la vente: {str(e)}")
                 
         except Exception as e:
-            QMessageBox.warning(self, "Erreur", f"Erreur de connexion à la base de données: {str(e)}")
+            QMessageBox.warning(self, "Erreur", f"Erreur lors du traitement de la vente: {str(e)}")
         finally:
-            if conn:
+            if 'conn' in locals() and conn:
                 conn.close()
 
     def remove_from_cart(self, row):
