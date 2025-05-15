@@ -127,17 +127,30 @@ class VariantSelectionDialog(QDialog):
             
         for variant in variants:
             try:
-                # Parse attribute values safely
+                # Parse attribute values safely from either 'attributes' or 'attribute_values' key
                 attr_values = {}
-                if variant.get('attribute_values'):
-                    try:
-                        if isinstance(variant['attribute_values'], str):
-                            attr_values = json.loads(variant['attribute_values'])
-                        else:
-                            attr_values = variant['attribute_values']
-                    except Exception as e:
-                        print(f"Error parsing attribute values: {e}")
-                        attr_values = {}
+                
+                # Try both possible keys for attributes (for compatibility with different data structures)
+                for key in ['attributes', 'attribute_values']:
+                    if variant.get(key):
+                        try:
+                            # Handle both string JSON and direct dictionary representation
+                            if isinstance(variant[key], str):
+                                parsed_values = json.loads(variant[key])
+                                attr_values = parsed_values
+                                # Add the parsed result back to the variant for later use
+                                variant[key] = parsed_values
+                            else:
+                                attr_values = variant[key]
+                            
+                            # If we successfully parsed values, stop looking
+                            if attr_values:
+                                break
+                        except Exception as e:
+                            print(f"Error parsing {key}: {e}")
+                
+                # Debug output
+                print(f"Variant {variant.get('id')}: Parsed attribute values: {attr_values}")
                 
                 # Create list item
                 item = QListWidgetItem()

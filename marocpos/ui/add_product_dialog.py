@@ -273,10 +273,17 @@ class AddProductDialog(QDialog):
                     self.variant_count_label.setStyleSheet("color: #666;")
                     
                 # Update the selected attributes in the UI - check all that are in the combined list
+                # Make case-insensitive comparison for attribute names
+                all_attr_names_lower = {name.lower() for name in all_attr_names}
                 print(f"Updating checkboxes for attributes: {[attr for attr, _ in self.variant_attributes]}")
+                print(f"Normalized attribute names for comparison: {all_attr_names_lower}")
+                
                 for attr, cb in self.variant_attributes:
-                    cb.setChecked(attr in all_attr_names)
-                    print(f"Setting {attr} to {'checked' if attr in all_attr_names else 'unchecked'}")
+                    # Case-insensitive check
+                    attr_lower = attr.lower()
+                    should_check = attr_lower in all_attr_names_lower
+                    cb.setChecked(should_check)
+                    print(f"Setting {attr} to {'checked' if should_check else 'unchecked'} (lower: {attr_lower})")
                 
                 # Ensure the variants section is enabled
                 self.has_variants.setChecked(bool(self.variants_data))

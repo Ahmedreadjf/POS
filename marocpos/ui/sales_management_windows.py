@@ -697,11 +697,29 @@ class SalesManagementWindow(QWidget):
             
             # Create variant name from product name + variant attributes
             attr_values = {}
-            if variant.get('attribute_values'):
-                if isinstance(variant['attribute_values'], str):
-                    attr_values = json.loads(variant['attribute_values'])
-                else:
-                    attr_values = variant['attribute_values']
+            
+            # Try both possible keys for attributes (for compatibility)
+            for key in ['attributes', 'attribute_values']:
+                if variant.get(key):
+                    try:
+                        # Handle both string JSON and direct dictionary representation
+                        if isinstance(variant[key], str):
+                            parsed_values = json.loads(variant[key])
+                            attr_values = parsed_values
+                            # Store the parsed result back in the variant
+                            variant[key] = parsed_values
+                        else:
+                            attr_values = variant[key]
+                        
+                        # If we got values, no need to check the other key
+                        if attr_values:
+                            break
+                    except Exception as e:
+                        print(f"Error parsing variant {key}: {e}")
+                        
+            # Debug output
+            print(f"Variant in cart: {variant}")
+            print(f"Extracted attribute values: {attr_values}")
             
             variant_desc = ""
             if attr_values:
