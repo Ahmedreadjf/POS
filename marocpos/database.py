@@ -3,7 +3,9 @@ import os
 from datetime import datetime, UTC
 
 class DatabaseManager:
-    DB_PATH = "pos7.db"
+    # Get the absolute path to the marocpos directory
+    MAROCPOS_DIR = os.path.dirname(os.path.abspath(__file__))
+    DB_PATH = os.path.join(MAROCPOS_DIR, "pos7.db")
 
     @classmethod
     def get_connection(cls):
