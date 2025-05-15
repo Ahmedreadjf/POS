@@ -273,6 +273,9 @@ class VariantManagementDialog(QDialog):
             if selected_values:
                 self.attribute_values[attr_name] = selected_values
         
+        # Debug output to help diagnose issues
+        print(f"Collected attribute values: {self.attribute_values}")
+        
         return self.attribute_values
 
     def generate_variants(self):
@@ -297,13 +300,24 @@ class VariantManagementDialog(QDialog):
             
             variant_name = " / ".join(name_parts)
             
-            # Generate default SKU
+            # Generate a more unique SKU
             base_sku = "SKU"  # This would normally come from the product
             sku_parts = []
-            for attr, value in combo.items():
-                sku_parts.append(value[0])  # First letter of each value
             
-            sku = f"{base_sku}-{''.join(sku_parts)}"
+            # Get first 2 letters (or full word if shorter) of each value, with attribute first letter
+            for attr, value in combo.items():
+                # Clean and normalize the value - remove spaces and special characters
+                cleaned_value = ''.join(c for c in value if c.isalnum())
+                # Get attribute first letter + up to 2 chars from value
+                attr_prefix = attr[0].upper()
+                value_part = cleaned_value[:2].upper()
+                sku_parts.append(f"{attr_prefix}{value_part}")
+            
+            # Add a unique timestamp-based suffix to ensure uniqueness
+            import time
+            timestamp_suffix = str(int(time.time() * 1000))[-4:]  # Last 4 digits of current time in ms
+            
+            sku = f"{base_sku}-{''.join(sku_parts)}-{timestamp_suffix}"
             
             # Create variant dictionary
             variant = {

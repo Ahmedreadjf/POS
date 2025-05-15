@@ -244,8 +244,25 @@ class AddProductDialog(QDialog):
             if dialog.exec_():
                 # Get the variant data
                 self.variants_data = dialog.get_variants_data()
-                # Update attribute list
+                
+                # Update attribute list from dialog
                 attr_names = dialog.get_attribute_names()
+                
+                # Also extract attribute names from variants in case get_attribute_names() misses some
+                variant_attr_names = set()
+                for variant in self.variants_data:
+                    if 'attributes' in variant:
+                        variant_attr_names.update(variant['attributes'].keys())
+                    elif 'attribute_values' in variant:
+                        try:
+                            attrs = json.loads(variant['attribute_values'])
+                            variant_attr_names.update(attrs.keys())
+                        except:
+                            pass
+                
+                # Combine both sources of attribute names
+                all_attr_names = set(attr_names) | variant_attr_names
+                print(f"All attribute names: {all_attr_names}")
                 
                 # Update variant count label
                 if self.variants_data:
@@ -255,9 +272,14 @@ class AddProductDialog(QDialog):
                     self.variant_count_label.setText("Aucune variante configurée")
                     self.variant_count_label.setStyleSheet("color: #666;")
                     
-                # Update the selected attributes in the UI
+                # Update the selected attributes in the UI - check all that are in the combined list
+                print(f"Updating checkboxes for attributes: {[attr for attr, _ in self.variant_attributes]}")
                 for attr, cb in self.variant_attributes:
-                    cb.setChecked(attr in attr_names)
+                    cb.setChecked(attr in all_attr_names)
+                    print(f"Setting {attr} to {'checked' if attr in all_attr_names else 'unchecked'}")
+                
+                # Ensure the variants section is enabled
+                self.has_variants.setChecked(bool(self.variants_data))
         except Exception as e:
             QMessageBox.warning(self, "Erreur", f"Erreur lors de l'ouverture du gestionnaire de variantes: {str(e)}")
 
@@ -426,12 +448,33 @@ class AddProductDialog(QDialog):
             QMessageBox.warning(self, "Validation", "Veuillez entrer un nom pour le produit.")
             return
         
-        # Check if product has variants but no attributes selected
+        # Check if product has variants but no attributes selected and no variants configured
         if self.has_variants.isChecked():
             selected_attrs = [attr for attr, cb in self.variant_attributes if cb.isChecked()]
-            if not selected_attrs:
+            has_configured_variants = hasattr(self, 'variants_data') and self.variants_data
+            
+            if not selected_attrs and not has_configured_variants:
                 QMessageBox.warning(self, "Validation", "Vous avez activé les variantes mais aucun attribut n'est sélectionné.")
                 return
+            
+            # If we have variants data but no selected attributes, select them automatically
+            if has_configured_variants and not selected_attrs:
+                # Extract attribute names from variants
+                attr_names = set()
+                for variant in self.variants_data:
+                    if 'attributes' in variant:
+                        attr_names.update(variant['attributes'].keys())
+                    elif 'attribute_values' in variant:
+                        try:
+                            attrs = json.loads(variant['attribute_values'])
+                            attr_names.update(attrs.keys())
+                        except:
+                            pass
+                
+                # Check the appropriate checkboxes
+                for attr, cb in self.variant_attributes:
+                    if attr in attr_names:
+                        cb.setChecked(True)
         
         # All validation passed
         self.accept()
