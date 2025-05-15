@@ -165,11 +165,27 @@ class VariantSelectionDialog(QDialog):
                 # Create variant name from attributes
                 variant_name = variant.get('name', '')
                 if not variant_name and attr_values:
-                    # Use .get() with default empty string to avoid KeyError
-                    attr_vals = [val for val in attr_values.values() if val]
-                    if attr_vals:
-                        variant_name = " / ".join(attr_vals)
-                    else:
+                    try:
+                        # Handle different structures of attr_values
+                        attr_vals = []
+                        
+                        # If attr_values is a dictionary with values
+                        if isinstance(attr_values, dict):
+                            attr_vals = [str(val) for val in attr_values.values() if val]
+                        # If attr_values is a list
+                        elif isinstance(attr_values, list):
+                            attr_vals = [str(val) for val in attr_values if val]
+                        # If it's some other structure, try to convert to string
+                        else:
+                            attr_vals = [str(attr_values)]
+                        
+                        # Join the values to create a name if we have values
+                        if attr_vals:
+                            variant_name = " / ".join(attr_vals)
+                        else:
+                            variant_name = f"Variante #{variant.get('id', '')}"
+                    except Exception as e:
+                        print(f"Error creating variant name: {e}")
                         variant_name = f"Variante #{variant.get('id', '')}"
                     
                 name_label = QLabel(variant_name)

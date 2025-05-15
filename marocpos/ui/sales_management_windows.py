@@ -723,7 +723,26 @@ class SalesManagementWindow(QWidget):
             
             variant_desc = ""
             if attr_values:
-                variant_desc = " (" + " / ".join(attr_values.values()) + ")"
+                try:
+                    # Handle different structures of attr_values
+                    attr_vals = []
+                    
+                    # If attr_values is a dictionary with values
+                    if isinstance(attr_values, dict):
+                        attr_vals = [str(val) for val in attr_values.values() if val]
+                    # If attr_values is a list
+                    elif isinstance(attr_values, list):
+                        attr_vals = [str(val) for val in attr_values if val]
+                    # If it's some other structure, try to convert to string
+                    else:
+                        attr_vals = [str(attr_values)]
+                    
+                    # Join the values to create a description if we have values
+                    if attr_vals:
+                        variant_desc = " (" + " / ".join(attr_vals) + ")"
+                except Exception as e:
+                    print(f"Error creating variant description: {e}")
+                    variant_desc = f" (Variante #{variant.get('id', '')})"
             
             variant_name = product['name'] + variant_desc
             
