@@ -86,16 +86,56 @@ def initialize_database():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE,
         description TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        display_type TEXT DEFAULT 'radio' CHECK(display_type IN ('radio', 'select', 'color', 'pills')),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     
     CREATE TABLE IF NOT EXISTS ProductAttributeValues (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         attribute_id INTEGER NOT NULL,
         value TEXT NOT NULL,
+        sequence INTEGER DEFAULT 0,
+        html_color TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (attribute_id) REFERENCES ProductAttributes(id) ON DELETE CASCADE,
         UNIQUE(attribute_id, value)
+    );
+    
+    CREATE TABLE IF NOT EXISTS ProductTemplateAttributeLine (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id INTEGER NOT NULL,
+        attribute_id INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (product_id) REFERENCES Products(id) ON DELETE CASCADE,
+        FOREIGN KEY (attribute_id) REFERENCES ProductAttributes(id) ON DELETE CASCADE,
+        UNIQUE(product_id, attribute_id)
+    );
+    
+    CREATE TABLE IF NOT EXISTS ProductTemplateAttributeValue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        line_id INTEGER NOT NULL,
+        value_id INTEGER NOT NULL,
+        price_extra REAL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (line_id) REFERENCES ProductTemplateAttributeLine(id) ON DELETE CASCADE,
+        FOREIGN KEY (value_id) REFERENCES ProductAttributeValues(id) ON DELETE CASCADE,
+        UNIQUE(line_id, value_id)
+    );
+    
+    CREATE TABLE IF NOT EXISTS ProductVariantCombination (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id INTEGER NOT NULL,
+        product_variant_id INTEGER NOT NULL,
+        template_attribute_value_id INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (product_id) REFERENCES Products(id) ON DELETE CASCADE,
+        FOREIGN KEY (product_variant_id) REFERENCES ProductVariants(id) ON DELETE CASCADE,
+        FOREIGN KEY (template_attribute_value_id) REFERENCES ProductTemplateAttributeValue(id) ON DELETE CASCADE,
+        UNIQUE(product_variant_id, template_attribute_value_id)
     );
     
     CREATE TABLE IF NOT EXISTS ProductVariants (
