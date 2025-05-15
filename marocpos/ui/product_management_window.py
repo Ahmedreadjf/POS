@@ -54,12 +54,29 @@ class ProductManagementWindow(QWidget):
             }
         """)
         
+        # Import/Export button
+        import_export_btn = QPushButton("Importer/Exporter")
+        import_export_btn.clicked.connect(self.open_import_export)
+        import_export_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #17a2b8;
+                color: white;
+                font-weight: bold;
+                padding: 10px;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #138496;
+            }
+        """)
+        
         # Add widgets to top layout
         top_layout.addWidget(search_label)
         top_layout.addWidget(self.search_input)
         top_layout.addWidget(category_label)
         top_layout.addWidget(self.category_filter)
         top_layout.addStretch()
+        top_layout.addWidget(import_export_btn)
         top_layout.addWidget(add_product_btn)
         
         main_layout.addLayout(top_layout)
@@ -101,282 +118,216 @@ class ProductManagementWindow(QWidget):
         
         main_layout.addWidget(self.products_table)
         
-        # Load categories for the filter
+        # Status bar
+        self.status_label = QLabel("Chargement des produits...")
+        main_layout.addWidget(self.status_label)
+
+        # Load categories for filter
         self.load_categories()
 
     def load_categories(self):
-        """Load categories for filtering"""
+        """Load categories for the category filter"""
+        # Clear the combo box
         self.category_filter.clear()
+        
+        # Add "All Categories" option
         self.category_filter.addItem("Toutes les catégories", None)
         
+        # Get all categories
         categories = Category.get_all_categories()
+        
+        # Add each category to combo box
         for category in categories:
             self.category_filter.addItem(category[1], category[0])
 
-    def load_products(self, category_id=None):
-        """Load products from database"""
+    def load_products(self):
+        """Load products into the table"""
         try:
+            # Get all products
+            products = Product.get_all_products()
+            
             # Clear table
             self.products_table.setRowCount(0)
-            
-            # Get products using raw SQL for maximum reliability
-            from database import get_connection
-            conn = get_connection()
-            if not conn:
-                QMessageBox.critical(self, "Erreur", "Impossible de se connecter à la base de données")
-                return
-                
-            try:
-                cursor = conn.cursor()
-                
-                if category_id:
-                    cursor.execute("""
-                        SELECT 
-                            p.id, p.barcode, p.name, p.unit_price, p.purchase_price,
-                            p.stock, p.min_stock, p.category_id, c.name as category_name,
-                            p.image_path, p.has_variants, p.variant_attributes, p.description
-                        FROM Products p
-                        LEFT JOIN Categories c ON p.category_id = c.id
-                        WHERE p.category_id = ?
-                        ORDER BY p.name
-                    """, (category_id,))
-                else:
-                    cursor.execute("""
-                        SELECT 
-                            p.id, p.barcode, p.name, p.unit_price, p.purchase_price,
-                            p.stock, p.min_stock, p.category_id, c.name as category_name,
-                            p.image_path, p.has_variants, p.variant_attributes, p.description
-                        FROM Products p
-                        LEFT JOIN Categories c ON p.category_id = c.id
-                        ORDER BY p.name
-                    """)
-                
-                products = []
-                columns = [column[0] for column in cursor.description]
-                for row in cursor.fetchall():
-                    product_dict = dict(zip(columns, row))
-                    products.append(product_dict)
-                
-                conn.close()
-            except Exception as e:
-                print(f"Database error: {e}")
-                if conn:
-                    conn.close()
-                QMessageBox.critical(self, "Erreur", f"Erreur de base de données: {str(e)}")
-                return
-            
-            print(f"Chargement de {len(products)} produits")
             
             # Set row count
             self.products_table.setRowCount(len(products))
             
-            # Fill table with product data
+            # Fill table with products
             for row, product in enumerate(products):
-                # ID column
+                # ID Column
                 id_item = QTableWidgetItem(str(product['id']))
-                id_item.setData(Qt.UserRole, product['id'])
+                id_item.setFlags(id_item.flags() & ~Qt.ItemIsEditable)  # Make read-only
                 self.products_table.setItem(row, 0, id_item)
                 
-                # Image column
-                image_item = QTableWidgetItem()
-                self.products_table.setItem(row, 1, image_item)
-                if product['image_path'] and os.path.exists(product['image_path']):
-                    pixmap = QPixmap(product['image_path']).scaled(40, 40, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-                    image_label = QLabel()
-                    image_label.setPixmap(pixmap)
-                    image_label.setAlignment(Qt.AlignCenter)
-                    self.products_table.setCellWidget(row, 1, image_label)
+                # Image Column
+                image_cell = QTableWidgetItem("")
                 
-                # Barcode column
-                barcode_item = QTableWidgetItem(str(product['barcode'] or ''))
+                if product.get('image_path') and os.path.exists(product['image_path']):
+                    # Create a small pixmap for the thumbnail
+                    pixmap = QPixmap(product['image_path'])
+                    if not pixmap.isNull():
+                        scaled_pixmap = pixmap.scaled(50, 50, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                        image_cell.setData(Qt.DecorationRole, scaled_pixmap)
+                
+                self.products_table.setItem(row, 1, image_cell)
+                
+                # Barcode Column
+                barcode_item = QTableWidgetItem(str(product.get('barcode', '')))
+                barcode_item.setFlags(barcode_item.flags() & ~Qt.ItemIsEditable)  # Make read-only
                 self.products_table.setItem(row, 2, barcode_item)
                 
-                # Name column
+                # Name Column
                 name_item = QTableWidgetItem(product['name'])
+                name_item.setFlags(name_item.flags() & ~Qt.ItemIsEditable)  # Make read-only
                 self.products_table.setItem(row, 3, name_item)
                 
-                # Selling price column
-                sell_price = float(product['unit_price'] or 0)
-                sell_item = QTableWidgetItem(f"{sell_price:.2f} MAD")
-                sell_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-                self.products_table.setItem(row, 4, sell_item)
+                # Sell Price Column
+                sell_price = product.get('unit_price', 0)
+                price_item = QTableWidgetItem(f"{sell_price:.2f}")
+                price_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                price_item.setFlags(price_item.flags() & ~Qt.ItemIsEditable)  # Make read-only
+                self.products_table.setItem(row, 4, price_item)
                 
-                # Purchase price column
-                purchase_price = float(product['purchase_price'] or 0)
-                purchase_item = QTableWidgetItem(f"{purchase_price:.2f} MAD")
-                purchase_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-                self.products_table.setItem(row, 5, purchase_item)
+                # Purchase Price Column
+                purchase_price = product.get('purchase_price', 0)
+                cost_item = QTableWidgetItem(f"{purchase_price:.2f}")
+                cost_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                cost_item.setFlags(cost_item.flags() & ~Qt.ItemIsEditable)  # Make read-only
+                self.products_table.setItem(row, 5, cost_item)
                 
-                # Stock column
-                stock = int(product['stock'] or 0)
-                stock_item = QTableWidgetItem(str(stock))
-                stock_item.setTextAlignment(Qt.AlignCenter)
-                
-                # Set color based on stock level
-                min_stock = int(product['min_stock'] or 0)
-                if stock <= min_stock:
-                    stock_item.setForeground(Qt.red)
+                # Stock Column
+                stock_item = QTableWidgetItem(str(product.get('stock', 0)))
+                stock_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                stock_item.setFlags(stock_item.flags() & ~Qt.ItemIsEditable)  # Make read-only
                 self.products_table.setItem(row, 6, stock_item)
                 
-                # Min stock column
-                min_stock_item = QTableWidgetItem(str(min_stock))
-                min_stock_item.setTextAlignment(Qt.AlignCenter)
+                # Min Stock Column
+                min_stock_item = QTableWidgetItem(str(product.get('min_stock', 0)))
+                min_stock_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                min_stock_item.setFlags(min_stock_item.flags() & ~Qt.ItemIsEditable)  # Make read-only
                 self.products_table.setItem(row, 7, min_stock_item)
                 
-                # Category column
-                category_name = product['category_name'] or 'Non catégorisé'
+                # Category Column
+                category_name = product.get('category_name', 'Non catégorisé')
                 category_item = QTableWidgetItem(category_name)
+                category_item.setFlags(category_item.flags() & ~Qt.ItemIsEditable)  # Make read-only
                 self.products_table.setItem(row, 8, category_item)
                 
-                # Variants column
-                has_variants = bool(product['has_variants'])
-                variant_text = "Oui" if has_variants else "Non"
-                variant_item = QTableWidgetItem(variant_text)
-                variant_item.setTextAlignment(Qt.AlignCenter)
-                self.products_table.setItem(row, 9, variant_item)
+                # Variants Column
+                has_variants = product.get('has_variants', False)
+                variants_item = QTableWidgetItem("Oui" if has_variants else "Non")
+                variants_item.setFlags(variants_item.flags() & ~Qt.ItemIsEditable)  # Make read-only
+                self.products_table.setItem(row, 9, variants_item)
                 
-                # Margin column
-                if purchase_price > 0:
+                # Margin Column
+                margin = 0
+                if purchase_price and purchase_price > 0:
                     margin = ((sell_price - purchase_price) / purchase_price) * 100
-                    margin_item = QTableWidgetItem(f"{margin:.1f}%")
-                else:
-                    margin_item = QTableWidgetItem("N/A")
+                margin_item = QTableWidgetItem(f"{margin:.2f}%")
                 margin_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                margin_item.setFlags(margin_item.flags() & ~Qt.ItemIsEditable)  # Make read-only
+                
+                # Color code margin
+                if margin < 0:
+                    margin_item.setForeground(Qt.red)
+                elif margin > 50:
+                    margin_item.setForeground(Qt.darkGreen)
+                    
                 self.products_table.setItem(row, 10, margin_item)
                 
-                # Actions column - create a widget with buttons
+                # Actions Column - create a widget with buttons
                 actions_widget = QWidget()
                 actions_layout = QHBoxLayout(actions_widget)
-                actions_layout.setContentsMargins(2, 2, 2, 2)
-                actions_layout.setSpacing(2)
+                actions_layout.setContentsMargins(0, 0, 0, 0)
                 
                 # Edit button
                 edit_btn = QPushButton("✏️")
                 edit_btn.setToolTip("Modifier")
-                edit_btn.setFixedSize(40, 25)
+                edit_btn.setMaximumWidth(30)
                 edit_btn.clicked.connect(lambda checked, p=product: self.edit_product(p))
+                
+                # Stock button
+                stock_btn = QPushButton("📦")
+                stock_btn.setToolTip("Gérer le stock")
+                stock_btn.setMaximumWidth(30)
+                stock_btn.clicked.connect(lambda checked, p=product: self.manage_stock(p))
+                
+                # Variant button (only for products with variants)
+                variant_btn = QPushButton("🔄")
+                variant_btn.setToolTip("Gérer les variantes")
+                variant_btn.setMaximumWidth(30)
+                variant_btn.setEnabled(has_variants)
+                variant_btn.clicked.connect(lambda checked, p=product: self.manage_variants(p))
                 
                 # Delete button
                 delete_btn = QPushButton("🗑️")
                 delete_btn.setToolTip("Supprimer")
-                delete_btn.setFixedSize(40, 25)
-                delete_btn.clicked.connect(lambda checked, pid=product['id']: self.delete_product(pid))
-                
-                # Stock management button
-                stock_btn = QPushButton("📦")
-                stock_btn.setToolTip("Gérer le stock")
-                stock_btn.setFixedSize(40, 25)
-                stock_btn.clicked.connect(lambda checked, p=product: self.manage_stock(p))
+                delete_btn.setMaximumWidth(30)
+                delete_btn.clicked.connect(lambda checked, id=product['id']: self.delete_product(id))
                 
                 actions_layout.addWidget(edit_btn)
-                actions_layout.addWidget(delete_btn)
                 actions_layout.addWidget(stock_btn)
-                
-                # Add variant button if product has variants
-                if has_variants:
-                    variant_btn = QPushButton("🔄")
-                    variant_btn.setToolTip("Gérer les variantes")
-                    variant_btn.setFixedSize(40, 25)
-                    variant_btn.clicked.connect(lambda checked, p=product: self.manage_variants(p))
-                    actions_layout.addWidget(variant_btn)
+                actions_layout.addWidget(variant_btn)
+                actions_layout.addWidget(delete_btn)
+                actions_layout.addStretch()
                 
                 self.products_table.setCellWidget(row, 11, actions_widget)
-                
+            
+            # Update status label
+            self.status_label.setText(f"Chargement de {len(products)} produits")
+            
         except Exception as e:
-            import traceback
             print(f"Error loading products: {e}")
-            print(traceback.format_exc())
-            QMessageBox.critical(self, "Erreur", f"Erreur lors du chargement des produits: {str(e)}")
+            self.status_label.setText(f"Erreur: {str(e)}")
 
     def filter_products(self):
         """Filter products based on search text and category"""
         search_text = self.search_input.text().lower()
         category_id = self.category_filter.currentData()
         
-        if category_id:
-            # Filter by category first, then by search text
-            self.load_products(category_id)
+        for row in range(self.products_table.rowCount()):
+            show_row = True
             
-            # Then filter by search text
-            for row in range(self.products_table.rowCount()):
-                found = False
-                for col in [2, 3]:  # barcode and name columns
-                    item = self.products_table.item(row, col)
-                    if item and search_text in item.text().lower():
-                        found = True
-                        break
-                self.products_table.setRowHidden(row, not found)
-        else:
-            # Load all products and filter by search text
-            self.load_products()
+            # Get product data
+            name = self.products_table.item(row, 3).text().lower()
+            barcode = self.products_table.item(row, 2).text().lower()
+            category_name = self.products_table.item(row, 8).text().lower()
             
-            # Then filter by search text
-            for row in range(self.products_table.rowCount()):
-                found = False
-                for col in [2, 3]:  # barcode and name columns
-                    item = self.products_table.item(row, col)
-                    if item and search_text in item.text().lower():
-                        found = True
-                        break
-                self.products_table.setRowHidden(row, not found)
+            # Check search text
+            if search_text:
+                show_row = search_text in name or search_text in barcode or search_text in category_name
+                
+            # Check category filter (if active)
+            if show_row and category_id is not None:
+                category_item = self.products_table.item(row, 8)
+                if category_item:
+                    # This is a simple check based on category name
+                    # Ideally we would store category ID in the item data
+                    current_category = category_item.text()
+                    selected_category = self.category_filter.currentText()
+                    if selected_category != "Toutes les catégories" and current_category != selected_category:
+                        show_row = False
+                
+            # Show or hide row
+            self.products_table.setRowHidden(row, not show_row)
+            
+        # Update status label with filtered count
+        visible_count = sum(1 for row in range(self.products_table.rowCount()) if not self.products_table.isRowHidden(row))
+        self.status_label.setText(f"Affichage de {visible_count} produits sur {self.products_table.rowCount()}")
 
     def add_product(self):
-        """Open add product dialog"""
-        try:
-            from .add_product_dialog import AddProductDialog
-            from models.product import Product
-            
-            dialog = AddProductDialog(self)
-            
-            if dialog.exec_():
-                # Get the product data from the dialog
-                product_data = dialog.get_product_data()
-                
-                # Add the product to the database using direct Product.add_product method
-                if Product.add_product(**product_data):
-                    self.load_products()
-                    QMessageBox.information(self, "Succès", f"Produit '{product_data['name']}' ajouté avec succès!")
-                else:
-                    QMessageBox.warning(self, "Erreur", "Erreur lors de l'ajout du produit dans la base de données.")
-        except Exception as e:
-            print(f"Error adding product: {e}")
-            import traceback
-            print(traceback.format_exc())
-            QMessageBox.warning(self, "Erreur", f"Erreur lors de l'ajout du produit: {str(e)}")
+        """Open the add product dialog"""
+        from ui.add_product_dialog import AddProductDialog
+        dialog = AddProductDialog(self)
+        if dialog.exec_():
+            self.load_products()  # Refresh products list
 
     def edit_product(self, product):
-        """Open edit product dialog with enhanced error handling"""
-        try:
-            from ui.product_helpers import debug_log, get_product_by_id, handle_error
-            
-            debug_log(f"Opening edit dialog for product ID {product.get('id')}")
-            
-            # Reload product to ensure we have the most current data
-            product_id = product.get('id')
-            if product_id:
-                fresh_product = get_product_by_id(product_id)
-                if fresh_product:
-                    product = fresh_product
-                    debug_log(f"Successfully loaded fresh product data for ID {product_id}")
-                else:
-                    debug_log(f"Could not load fresh product data for ID {product_id}, using provided data")
-            
-            # Import dialog and show it
-            from .edit_product_dialog import EditProductDialog
-            dialog = EditProductDialog(product, self)
-            
-            if dialog.exec_():
-                debug_log(f"Product {product_id} successfully edited, reloading product list")
-                self.load_products()
-                QMessageBox.information(self, "Succès", "Produit modifié avec succès!")
-            else:
-                debug_log(f"Edit dialog cancelled for product {product_id}")
-                
-        except Exception as e:
-            debug_log(f"Error editing product: {e}")
-            import traceback
-            debug_log(traceback.format_exc())
-            handle_error(self, "Erreur d'édition", "Impossible de modifier le produit", e)
+        """Open the edit product dialog"""
+        from ui.add_product_dialog import AddProductDialog
+        dialog = AddProductDialog(self, product)
+        if dialog.exec_():
+            self.load_products()  # Refresh products list
 
     def delete_product(self, product_id):
         """Delete a product"""
@@ -433,40 +384,31 @@ class ProductManagementWindow(QWidget):
                     variant_attributes = []
             
             # Create and show the dialog
-            dialog = VariantManagementDialog(
-                product_id=product['id'],
-                parent=self,
-                variant_attributes=variant_attributes
-            )
+            dialog = VariantManagementDialog(product['id'], self, variant_attributes)
             
             if dialog.exec_():
-                # Get the updated variant data
-                variants_data = dialog.get_variants_data()
-                
-                # Update the product with the new variant data
-                if variants_data:
-                    # Update the product with new variant data
-                    update_data = {
-                        'has_variants': True,
-                        'variant_attributes': json.dumps(dialog.get_attribute_names())
-                    }
-                    
-                    # Update the product in the database
-                    Product.update_product(product['id'], **update_data)
-                    
-                    # Update the variants
-                    # Here we would need to add code to update/delete existing variants
-                    # For now we'll just show a success message
-                    self.load_products()
-                    QMessageBox.information(
-                        self,
-                        "Succès",
-                        f"{len(variants_data)} variantes configurées pour {product['name']}"
-                    )
+                # Refresh the product list after managing variants
+                self.load_products()
         except Exception as e:
-            print(f"Error managing variants: {e}")
+            print(f"Error opening variant management: {e}")
             QMessageBox.warning(
                 self,
                 "Erreur",
-                f"Erreur lors de la gestion des variantes: {str(e)}"
+                f"Erreur lors de l'ouverture du gestionnaire de variantes: {str(e)}"
+            )
+            
+    def open_import_export(self):
+        """Open the import/export dialog"""
+        try:
+            from .import_export_dialog import ImportExportDialog
+            dialog = ImportExportDialog(self)
+            if dialog.exec_():
+                # Refresh products list after import
+                self.load_products()
+        except Exception as e:
+            print(f"Error opening import/export dialog: {e}")
+            QMessageBox.warning(
+                self,
+                "Erreur",
+                f"Erreur lors de l'ouverture de l'outil d'importation/exportation: {str(e)}"
             )
