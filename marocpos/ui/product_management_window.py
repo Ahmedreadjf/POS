@@ -113,13 +113,14 @@ class ProductManagementWindow(QWidget):
         for category in categories:
             self.category_filter.addItem(category[1], category[0])
 
-            def load_products(self, category_id=None):
-        """Load products from database (FIXED)"""
+    def load_products(self, category_id=None):
+        """Load products from database"""
         try:
             # Clear table
             self.products_table.setRowCount(0)
             
             # Get products using raw SQL for maximum reliability
+            from database import get_connection
             conn = get_connection()
             if not conn:
                 QMessageBox.critical(self, "Erreur", "Impossible de se connecter à la base de données")
@@ -167,7 +168,127 @@ class ProductManagementWindow(QWidget):
             print(f"Chargement de {len(products)} produits")
             
             # Set row count
-            self.products_table.setRowCount(len(products))def filter_products(self):
+            self.products_table.setRowCount(len(products))
+            
+            # Fill table with product data
+            for row, product in enumerate(products):
+                # ID column
+                id_item = QTableWidgetItem(str(product['id']))
+                id_item.setData(Qt.UserRole, product['id'])
+                self.products_table.setItem(row, 0, id_item)
+                
+                # Image column
+                image_item = QTableWidgetItem()
+                self.products_table.setItem(row, 1, image_item)
+                if product['image_path'] and os.path.exists(product['image_path']):
+                    pixmap = QPixmap(product['image_path']).scaled(40, 40, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                    image_label = QLabel()
+                    image_label.setPixmap(pixmap)
+                    image_label.setAlignment(Qt.AlignCenter)
+                    self.products_table.setCellWidget(row, 1, image_label)
+                
+                # Barcode column
+                barcode_item = QTableWidgetItem(str(product['barcode'] or ''))
+                self.products_table.setItem(row, 2, barcode_item)
+                
+                # Name column
+                name_item = QTableWidgetItem(product['name'])
+                self.products_table.setItem(row, 3, name_item)
+                
+                # Selling price column
+                sell_price = float(product['unit_price'] or 0)
+                sell_item = QTableWidgetItem(f"{sell_price:.2f} MAD")
+                sell_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                self.products_table.setItem(row, 4, sell_item)
+                
+                # Purchase price column
+                purchase_price = float(product['purchase_price'] or 0)
+                purchase_item = QTableWidgetItem(f"{purchase_price:.2f} MAD")
+                purchase_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                self.products_table.setItem(row, 5, purchase_item)
+                
+                # Stock column
+                stock = int(product['stock'] or 0)
+                stock_item = QTableWidgetItem(str(stock))
+                stock_item.setTextAlignment(Qt.AlignCenter)
+                
+                # Set color based on stock level
+                min_stock = int(product['min_stock'] or 0)
+                if stock <= min_stock:
+                    stock_item.setForeground(Qt.red)
+                self.products_table.setItem(row, 6, stock_item)
+                
+                # Min stock column
+                min_stock_item = QTableWidgetItem(str(min_stock))
+                min_stock_item.setTextAlignment(Qt.AlignCenter)
+                self.products_table.setItem(row, 7, min_stock_item)
+                
+                # Category column
+                category_name = product['category_name'] or 'Non catégorisé'
+                category_item = QTableWidgetItem(category_name)
+                self.products_table.setItem(row, 8, category_item)
+                
+                # Variants column
+                has_variants = bool(product['has_variants'])
+                variant_text = "Oui" if has_variants else "Non"
+                variant_item = QTableWidgetItem(variant_text)
+                variant_item.setTextAlignment(Qt.AlignCenter)
+                self.products_table.setItem(row, 9, variant_item)
+                
+                # Margin column
+                if purchase_price > 0:
+                    margin = ((sell_price - purchase_price) / purchase_price) * 100
+                    margin_item = QTableWidgetItem(f"{margin:.1f}%")
+                else:
+                    margin_item = QTableWidgetItem("N/A")
+                margin_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                self.products_table.setItem(row, 10, margin_item)
+                
+                # Actions column - create a widget with buttons
+                actions_widget = QWidget()
+                actions_layout = QHBoxLayout(actions_widget)
+                actions_layout.setContentsMargins(2, 2, 2, 2)
+                actions_layout.setSpacing(2)
+                
+                # Edit button
+                edit_btn = QPushButton("✏️")
+                edit_btn.setToolTip("Modifier")
+                edit_btn.setFixedSize(40, 25)
+                edit_btn.clicked.connect(lambda checked, p=product: self.edit_product(p))
+                
+                # Delete button
+                delete_btn = QPushButton("🗑️")
+                delete_btn.setToolTip("Supprimer")
+                delete_btn.setFixedSize(40, 25)
+                delete_btn.clicked.connect(lambda checked, pid=product['id']: self.delete_product(pid))
+                
+                # Stock management button
+                stock_btn = QPushButton("📦")
+                stock_btn.setToolTip("Gérer le stock")
+                stock_btn.setFixedSize(40, 25)
+                stock_btn.clicked.connect(lambda checked, p=product: self.manage_stock(p))
+                
+                actions_layout.addWidget(edit_btn)
+                actions_layout.addWidget(delete_btn)
+                actions_layout.addWidget(stock_btn)
+                
+                # Add variant button if product has variants
+                if has_variants:
+                    variant_btn = QPushButton("🔄")
+                    variant_btn.setToolTip("Gérer les variantes")
+                    variant_btn.setFixedSize(40, 25)
+                    variant_btn.clicked.connect(lambda checked, p=product: self.manage_variants(p))
+                    actions_layout.addWidget(variant_btn)
+                
+                self.products_table.setCellWidget(row, 11, actions_widget)
+                
+        except Exception as e:
+            import traceback
+            print(f"Error loading products: {e}")
+            print(traceback.format_exc())
+            QMessageBox.critical(self, "Erreur", f"Erreur lors du chargement des produits: {str(e)}")
+
+    def filter_products(self):
         """Filter products based on search text and category"""
         search_text = self.search_input.text().lower()
         category_id = self.category_filter.currentData()
