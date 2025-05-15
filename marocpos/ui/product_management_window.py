@@ -324,13 +324,26 @@ class ProductManagementWindow(QWidget):
         """Open add product dialog"""
         try:
             from .add_product_dialog import AddProductDialog
+            from .product_helpers import add_product_reliable
+            
             dialog = AddProductDialog(self)
             
             if dialog.exec_():
-                self.load_products()
-                QMessageBox.information(self, "Succès", "Produit ajouté avec succès!")
+                # Get the product data from the dialog
+                product_data = dialog.get_product_data()
+                
+                # Add the product to the database
+                product_id = add_product_reliable(**product_data)
+                
+                if product_id:
+                    self.load_products()
+                    QMessageBox.information(self, "Succès", f"Produit '{product_data['name']}' ajouté avec succès!")
+                else:
+                    QMessageBox.warning(self, "Erreur", "Erreur lors de l'ajout du produit dans la base de données.")
         except Exception as e:
             print(f"Error adding product: {e}")
+            import traceback
+            print(traceback.format_exc())
             QMessageBox.warning(self, "Erreur", f"Erreur lors de l'ajout du produit: {str(e)}")
 
     def edit_product(self, product):
