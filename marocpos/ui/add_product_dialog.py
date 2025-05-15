@@ -493,8 +493,31 @@ class AddProductDialog(QDialog):
                     if attr in attr_names:
                         cb.setChecked(True)
         
-        # All validation passed
-        self.accept()
+        try:
+            # Get product data
+            product_data = self.get_product_data()
+            
+            # Check if we're editing an existing product or creating a new one
+            if self.product and 'id' in self.product:
+                # Update existing product
+                from models.product import Product
+                if Product.update_product(self.product['id'], **product_data):
+                    QMessageBox.information(self, "Succès", f"Produit '{product_data['name']}' mis à jour avec succès!")
+                    self.accept()
+                else:
+                    QMessageBox.warning(self, "Erreur", "Erreur lors de la mise à jour du produit.")
+            else:
+                # Create new product
+                from models.product import Product
+                product_id = Product.add_product(**product_data)
+                if product_id:
+                    QMessageBox.information(self, "Succès", f"Produit '{product_data['name']}' ajouté avec succès!")
+                    self.accept()
+                else:
+                    QMessageBox.warning(self, "Erreur", "Erreur lors de l'ajout du produit.")
+        except Exception as e:
+            print(f"Error saving product: {e}")
+            QMessageBox.warning(self, "Erreur", f"Erreur lors de l'enregistrement du produit: {str(e)}")
 
     def manage_attributes(self):
         """Open the attribute management dialog"""
