@@ -254,9 +254,20 @@ class VariantSelectionDialog(QDialog):
                 price_stock = QVBoxLayout()
                 price_stock.setAlignment(Qt.AlignRight)
                 
-                # Calculate adjusted price
+                # Calculate adjusted price with all attribute price extras
                 base_price = float(self.product['unit_price'])
-                price_adj = float(variant.get('price_adjustment', 0))
+                
+                # Use total_price_adjustment which includes attribute price extras and variant price adjustment
+                if 'total_price_adjustment' in variant:
+                    price_adj = float(variant.get('total_price_adjustment', 0))
+                else:
+                    # Fallback to just the variant's price adjustment if the total isn't available
+                    price_adj = float(variant.get('price_adjustment', 0))
+                    
+                # Show the price breakdown if we have extras data
+                if 'price_extras' in variant and variant['price_extras'] > 0:
+                    print(f"Variant price breakdown: Base {base_price} + Attributes {variant['price_extras']} + Variant {variant.get('price_adjustment', 0)} = {base_price + price_adj}")
+                    
                 final_price = base_price + price_adj
                 
                 price_label = QLabel(f"{final_price:.2f} MAD")
