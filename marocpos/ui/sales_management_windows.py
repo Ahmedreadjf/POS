@@ -794,9 +794,20 @@ class SalesManagementWindow(QWidget):
             
             variant_name = product['name'] + variant_desc
             
-            # Calculate price - base price + adjustment
+            # Calculate price - base price + all attribute adjustments
             base_price = float(product['unit_price'])
-            price_adj = float(variant.get('price_adjustment', 0))
+            
+            # Use total_price_adjustment which includes all attribute price extras 
+            if 'total_price_adjustment' in variant:
+                price_adj = float(variant.get('total_price_adjustment', 0))
+            else:
+                # Fallback to just the variant's direct price adjustment
+                price_adj = float(variant.get('price_adjustment', 0))
+                
+            # Show the complete price breakdown if extras are available
+            if 'price_extras' in variant and variant['price_extras'] > 0:
+                print(f"Cart variant price: Base {base_price} + Attributes {variant['price_extras']} + Variant adj {variant.get('price_adjustment', 0)} = {base_price + price_adj}")
+                
             final_price = base_price + price_adj
             
             # Add to cart

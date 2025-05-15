@@ -258,6 +258,8 @@ class Product:
         if conn:
             try:
                 cursor = conn.cursor()
+                
+                # First get the variants basic data
                 cursor.execute("""
                     SELECT *
                     FROM ProductVariants
@@ -291,9 +293,37 @@ class Product:
                         # Ensure both attribute keys exist even if empty
                         variant_dict['attribute_values'] = {}
                         variant_dict['attributes'] = {}
+                    
+                    # Compute total price adjustment from attribute combinations
+                    try:
+                        # Get the template attribute values for this variant
+                        cursor.execute("""
+                            SELECT ptav.price_extra
+                            FROM ProductVariantCombination pvc
+                            JOIN ProductTemplateAttributeValue ptav ON pvc.template_attribute_value_id = ptav.id
+                            WHERE pvc.product_variant_id = ?
+                        """, (variant_dict['id'],))
+                        
+                        # Sum up all price extras
+                        price_extras = cursor.fetchall()
+                        total_price_extra = sum(float(extra['price_extra'] or 0) for extra in price_extras)
+                        
+                        # Add in any explicit price_adjustment for the variant 
+                        base_adj = float(variant_dict.get('price_adjustment') or 0)
+                        
+                        # Store both values
+                        variant_dict['price_extras'] = total_price_extra
+                        variant_dict['total_price_adjustment'] = total_price_extra + base_adj
+                        
+                        print(f"Variant {variant_dict['id']} - Total price adjustment: {variant_dict['total_price_adjustment']} ({base_adj} variant, {total_price_extra} attributes)")
+                        
+                    except Exception as e:
+                        print(f"Error calculating price adjustment for variant {variant_dict['id']}: {e}")
+                        # Use just the base adjustment as fallback
+                        variant_dict['total_price_adjustment'] = float(variant_dict.get('price_adjustment') or 0)
                         
                     # Add explicit debugging output
-                    print(f"Returning variant: {variant_dict['id']}, attributes: {variant_dict.get('attributes')}, attribute_values: {variant_dict.get('attribute_values')}")
+                    print(f"Returning variant: {variant_dict['id']}, attributes: {variant_dict.get('attributes')}, price_adjustment: {variant_dict.get('total_price_adjustment')}")
                     
                     result.append(variant_dict)
                 
