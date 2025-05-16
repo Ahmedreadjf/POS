@@ -324,13 +324,13 @@ def initialize_database():
         tables = cursor.fetchall()
         print("📦 Tables existantes:")
         for table in tables:
-            print(f"- {table[0]}")
+            print(f"- {table['name']}")
 
         cursor.execute("SELECT name FROM Categories")
         categories = cursor.fetchall()
         print("\n📁 Catégories existantes:")
         for category in categories:
-            print(f"- {category[0]}")
+            print(f"- {category['name']}")
 
         print("\n✅ Tables créées ou vérifiées.")
         print("✅ Utilisateur admin par défaut existant.")
