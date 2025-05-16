@@ -1,12 +1,10 @@
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QFrame, QGridLayout, QSizePolicy, QMainWindow, QAction,
-    QMenu, QMessageBox, QDialog
+    QMainWindow, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
+    QWidget, QGridLayout, QFrame, QSizePolicy, QSpacerItem
 )
 from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QIcon, QPixmap, QFont
+from PyQt5.QtGui import QIcon, QPixmap, QFont, QColor
 import os
-import sys
 
 class DashboardWindow(QMainWindow):
     def __init__(self, user=None):
@@ -15,279 +13,305 @@ class DashboardWindow(QMainWindow):
         self.init_ui()
         
     def init_ui(self):
-        self.setWindowTitle("MarocPOS - Tableau de Bord")
-        self.resize(1200, 800)
+        self.setWindowTitle("MarocPOS - Tableau de bord")
+        self.setMinimumSize(1200, 800)
         
-        # Central widget
+        # Create central widget
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         
-        # Main layout
+        # Create main layout
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(20)
         
-        # Header
-        header_frame = self.create_header()
-        main_layout.addWidget(header_frame)
+        # Create header section
+        header_layout = QHBoxLayout()
+        logo_label = QLabel()
+        logo_path = os.path.join(os.path.dirname(__file__), '..', 'logo.png')
+        if os.path.exists(logo_path):
+            logo_pixmap = QPixmap(logo_path).scaled(QSize(150, 70), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            logo_label.setPixmap(logo_pixmap)
+        else:
+            logo_label.setText("MarocPOS")
+            logo_label.setStyleSheet("font-size: 24pt; font-weight: bold; color: #24786d;")
+            
+        header_layout.addWidget(logo_label)
         
-        # Menu grid
-        menu_grid = self.create_menu_grid()
-        main_layout.addWidget(menu_grid)
+        # Add welcome message with user name
+        welcome_msg = "Bienvenue, "
+        if self.user and hasattr(self.user, 'full_name') and self.user.full_name:
+            welcome_msg += self.user.full_name
+        elif self.user and hasattr(self.user, 'username') and self.user.username:
+            welcome_msg += self.user.username
+        else:
+            welcome_msg += "Utilisateur"
+            
+        welcome_label = QLabel(welcome_msg)
+        welcome_label.setStyleSheet("font-size: 18pt; color: #333;")
+        welcome_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        header_layout.addWidget(welcome_label)
         
-        # Status bar info
-        self.statusBar().showMessage(f"Connecté en tant que: {self.user['username'] if self.user else 'Invité'}")
+        main_layout.addLayout(header_layout)
         
-    def create_header(self):
-        header_frame = QFrame()
-        header_frame.setStyleSheet("""
+        # Create quick stats section
+        stats_frame = QFrame()
+        stats_frame.setFrameShape(QFrame.StyledPanel)
+        stats_frame.setStyleSheet("""
             QFrame {
-                background-color: #24786d;
+                background-color: #f8f9fa;
                 border-radius: 10px;
                 padding: 10px;
             }
         """)
         
-        header_layout = QHBoxLayout(header_frame)
+        stats_layout = QHBoxLayout(stats_frame)
         
-        # Logo/app name
-        logo_label = QLabel("MarocPOS")
-        logo_label.setStyleSheet("""
-            font-size: 24px;
-            font-weight: bold;
-            color: white;
-        """)
-        header_layout.addWidget(logo_label)
+        # Add quick stat boxes
+        stats_layout.addWidget(self.create_stat_box("Chiffre d'affaires aujourd'hui", self.get_sales_today(), "#28a745"))
+        stats_layout.addWidget(self.create_stat_box("Transactions aujourd'hui", self.get_transactions_today(), "#007bff"))
+        stats_layout.addWidget(self.create_stat_box("Panier moyen", self.get_avg_transaction(), "#fd7e14"))
+        stats_layout.addWidget(self.create_stat_box("Produits stocks faibles", self.get_low_stock_count(), "#dc3545"))
         
-        # User info
-        if self.user:
-            user_label = QLabel(f"Bienvenue, {self.user['username']}")
-            user_label.setStyleSheet("""
-                font-size: 16px;
+        main_layout.addWidget(stats_frame)
+        
+        # Create main menu grid
+        menu_layout = QGridLayout()
+        menu_layout.setSpacing(15)
+        
+        # Create and add menu cards
+        menu_layout.addWidget(self.create_menu_card("Ventes", "images/sales.png", self.open_sales), 0, 0)
+        menu_layout.addWidget(self.create_menu_card("Produits", "images/products.png", self.open_products), 0, 1)
+        menu_layout.addWidget(self.create_menu_card("Clients", "images/customers.png", self.open_customers), 0, 2)
+        menu_layout.addWidget(self.create_menu_card("Rapports", "images/reports.png", self.open_reports), 1, 0)
+        menu_layout.addWidget(self.create_menu_card("Utilisateurs", "images/users.png", self.open_users), 1, 1)
+        menu_layout.addWidget(self.create_menu_card("Paramètres", "images/settings.png", self.open_settings), 1, 2)
+        
+        main_layout.addLayout(menu_layout)
+        
+        # Add a logout button
+        logout_button = QPushButton("Déconnexion")
+        logout_button.setStyleSheet("""
+            QPushButton {
+                background-color: #dc3545;
                 color: white;
-            """)
-            header_layout.addWidget(user_label, alignment=Qt.AlignRight)
-        
-        return header_frame
-        
-    def create_menu_grid(self):
-        menu_frame = QFrame()
-        menu_frame.setStyleSheet("""
-            QFrame {
-                background-color: white;
-                border-radius: 10px;
-                padding: 20px;
+                border: none;
+                border-radius: 5px;
+                padding: 10px 20px;
+                font-size: 14pt;
+            }
+            QPushButton:hover {
+                background-color: #c82333;
             }
         """)
+        logout_button.clicked.connect(self.logout)
         
-        grid_layout = QGridLayout(menu_frame)
-        grid_layout.setSpacing(20)
+        # Add spacer and logout button
+        bottom_layout = QHBoxLayout()
+        bottom_layout.addStretch()
+        bottom_layout.addWidget(logout_button)
         
-        # Create menu items
-        menu_items = [
-            {
-                "title": "Ventes",
-                "icon": "icons/sales.png",
-                "color": "#28a745",
-                "description": "Gérer les ventes et le panier",
-                "callback": self.open_sales
-            },
-            {
-                "title": "Produits",
-                "icon": "icons/products.png",
-                "color": "#007bff",
-                "description": "Gérer les produits et le stock",
-                "callback": self.open_products
-            },
-            {
-                "title": "Catégories",
-                "icon": "icons/categories.png",
-                "color": "#fd7e14",
-                "description": "Gérer les catégories de produits",
-                "callback": self.open_categories
-            },
-            {
-                "title": "Utilisateurs",
-                "icon": "icons/users.png",
-                "color": "#6f42c1",
-                "description": "Gérer les utilisateurs du système",
-                "callback": self.open_users
-            },
-            {
-                "title": "Historique",
-                "icon": "icons/history.png",
-                "color": "#17a2b8",
-                "description": "Historique des ventes",
-                "callback": self.open_history
-            },
-            {
-                "title": "Magasins",
-                "icon": "icons/stores.png",
-                "color": "#dc3545",
-                "description": "Gérer les magasins",
-                "callback": self.open_stores
-            },
-            {
-                "title": "Paramètres",
-                "icon": "icons/settings.png",
-                "color": "#6c757d",
-                "description": "Configurer l'application",
-                "callback": self.open_settings
-            },
-            {
-                "title": "Rapports",
-                "icon": "icons/reports.png",
-                "color": "#20c997",
-                "description": "Rapports et statistiques",
-                "callback": self.open_reports
-            }
-        ]
+        main_layout.addLayout(bottom_layout)
         
-        # Add menu items to grid
-        row, col = 0, 0
-        max_cols = 4
-        
-        for item in menu_items:
-            menu_button = self.create_menu_button(
-                title=item["title"],
-                icon=item.get("icon"),
-                color=item.get("color", "#007bff"),
-                description=item.get("description", ""),
-                callback=item.get("callback")
-            )
-            
-            grid_layout.addWidget(menu_button, row, col)
-            
-            col += 1
-            if col >= max_cols:
-                col = 0
-                row += 1
-                
-        return menu_frame
-        
-    def create_menu_button(self, title, icon=None, color="#007bff", description="", callback=None):
-        button_frame = QFrame()
-        button_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        button_frame.setMinimumHeight(150)
-        button_frame.setStyleSheet(f"""
+    def create_stat_box(self, title, value, color):
+        """Create a statistics box"""
+        frame = QFrame()
+        frame.setFrameShape(QFrame.StyledPanel)
+        frame.setStyleSheet(f"""
             QFrame {{
                 background-color: {color};
-                border-radius: 10px;
+                border-radius: 8px;
                 padding: 15px;
             }}
-            QFrame:hover {{
-                background-color: {self.lighten_color(color)};
-                cursor: pointer;
-            }}
         """)
         
-        # Make the frame clickable
-        button_frame.mousePressEvent = lambda e: callback() if callback else None
+        layout = QVBoxLayout(frame)
         
-        layout = QVBoxLayout(button_frame)
-        
-        # Title
+        # Title label
         title_label = QLabel(title)
         title_label.setStyleSheet("""
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+        """)
+        
+        # Value label
+        value_label = QLabel(value)
+        value_label.setStyleSheet("""
             color: white;
-            font-size: 18px;
+            font-size: 24px;
             font-weight: bold;
         """)
-        layout.addWidget(title_label)
         
-        # Description
-        if description:
-            desc_label = QLabel(description)
-            desc_label.setStyleSheet("""
-                color: rgba(255, 255, 255, 0.8);
-                font-size: 12px;
-            """)
-            desc_label.setWordWrap(True)
-            layout.addWidget(desc_label)
-            
-        # Add stretch to push content to the top
+        layout.addWidget(title_label)
+        layout.addWidget(value_label)
         layout.addStretch()
         
-        return button_frame
+        return frame
+        
+    def create_menu_card(self, title, icon_path, callback):
+        """Create a menu card button"""
+        card = QPushButton()
+        card.setMinimumSize(320, 180)
+        card.setStyleSheet("""
+            QPushButton {
+                background-color: white;
+                border: 1px solid #ddd;
+                border-radius: 10px;
+                text-align: left;
+                padding: 20px;
+            }
+            QPushButton:hover {
+                background-color: #f8f9fa;
+                border: 1px solid #24786d;
+            }
+        """)
+        
+        # Create layout for the card
+        layout = QVBoxLayout(card)
+        
+        # Add icon if exists
+        if os.path.exists(icon_path):
+            icon_label = QLabel()
+            icon_pixmap = QPixmap(icon_path).scaled(QSize(64, 64), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            icon_label.setPixmap(icon_pixmap)
+            layout.addWidget(icon_label)
+        
+        # Add title
+        title_label = QLabel(title)
+        title_label.setStyleSheet("font-size: 18pt; color: #24786d; font-weight: bold;")
+        
+        layout.addWidget(title_label)
+        layout.addStretch()
+        
+        # Connect callback
+        card.clicked.connect(callback)
+        
+        return card
     
-    def lighten_color(self, color):
-        """Lighten a hex color by 20%"""
-        # Remove # if present
-        color = color.lstrip('#')
-        
-        # Convert to RGB
-        r = int(color[0:2], 16)
-        g = int(color[2:4], 16)
-        b = int(color[4:6], 16)
-        
-        # Lighten by 20%
-        r = min(255, int(r * 1.2))
-        g = min(255, int(g * 1.2))
-        b = min(255, int(b * 1.2))
-        
-        # Convert back to hex
-        return f"#{r:02x}{g:02x}{b:02x}"
+    # Methods to retrieve stat values
+    def get_sales_today(self):
+        try:
+            from models.sales_report import SalesReport
+            import datetime
+            
+            today = datetime.datetime.now().strftime("%Y-%m-%d")
+            report_data = SalesReport.get_daily_sales(today)
+            
+            if report_data and 'summary' in report_data:
+                total_sales = report_data['summary'].get('total_sales', 0) or 0
+                return f"{total_sales:.2f} MAD"
+            else:
+                return "0.00 MAD"
+        except Exception as e:
+            print(f"Error getting today's sales: {e}")
+            return "0.00 MAD"
     
+    def get_transactions_today(self):
+        try:
+            from models.sales_report import SalesReport
+            import datetime
+            
+            today = datetime.datetime.now().strftime("%Y-%m-%d")
+            report_data = SalesReport.get_daily_sales(today)
+            
+            if report_data and 'summary' in report_data:
+                sale_count = report_data['summary'].get('sale_count', 0) or 0
+                return str(sale_count)
+            else:
+                return "0"
+        except Exception as e:
+            print(f"Error getting transaction count: {e}")
+            return "0"
+    
+    def get_avg_transaction(self):
+        try:
+            from models.sales_report import SalesReport
+            import datetime
+            
+            today = datetime.datetime.now().strftime("%Y-%m-%d")
+            report_data = SalesReport.get_daily_sales(today)
+            
+            if report_data and 'summary' in report_data:
+                avg_sale = report_data['summary'].get('average_sale', 0) or 0
+                return f"{avg_sale:.2f} MAD"
+            else:
+                return "0.00 MAD"
+        except Exception as e:
+            print(f"Error getting average transaction: {e}")
+            return "0.00 MAD"
+    
+    def get_low_stock_count(self):
+        try:
+            from models.sales_report import SalesReport
+            
+            report_data = SalesReport.get_inventory_report()
+            
+            if report_data and 'summary' in report_data:
+                low_stock = report_data['summary'].get('low_stock_products', 0) or 0
+                return str(low_stock)
+            else:
+                return "0"
+        except Exception as e:
+            print(f"Error getting low stock count: {e}")
+            return "0"
+    
+    # Menu card callback methods
     def open_sales(self):
+        """Open sales window"""
         try:
             from .sales_management_windows import SalesManagementWindow
-            self.sales_window = SalesManagementWindow(self.user)
+            self.sales_window = SalesManagementWindow()
             self.sales_window.show()
         except Exception as e:
-            QMessageBox.warning(self, "Erreur", f"Erreur lors de l'ouverture de la gestion des ventes: {str(e)}")
-            
+            print(f"Error opening sales window: {e}")
+    
     def open_products(self):
+        """Open products window"""
         try:
             from .product_management_window import ProductManagementWindow
             self.products_window = ProductManagementWindow()
             self.products_window.show()
         except Exception as e:
-            QMessageBox.warning(self, "Erreur", f"Erreur lors de l'ouverture de la gestion des produits: {str(e)}")
-            
-    def open_categories(self):
+            print(f"Error opening products window: {e}")
+    
+    def open_customers(self):
+        """Open customers window"""
+        print("Customers window not implemented yet")
+    
+    def open_reports(self):
+        """Open reports window"""
         try:
-            from .category_management_window import CategoryManagementWindow
-            self.categories_window = CategoryManagementWindow()
-            self.categories_window.show()
+            from .reports_dashboard import ReportsDashboard
+            self.reports_window = ReportsDashboard(self.user)
+            self.reports_window.show()
         except Exception as e:
-            QMessageBox.warning(self, "Erreur", f"Erreur lors de l'ouverture de la gestion des catégories: {str(e)}")
-            
+            print(f"Error opening reports window: {e}")
+    
     def open_users(self):
+        """Open users window"""
         try:
             from .user_management_window import UserManagementWindow
             self.users_window = UserManagementWindow()
             self.users_window.show()
         except Exception as e:
-            QMessageBox.warning(self, "Erreur", f"Erreur lors de l'ouverture de la gestion des utilisateurs: {str(e)}")
-            
-    def open_history(self):
-        try:
-            from .sales_history_windows import SalesHistoryWindow
-            self.history_window = SalesHistoryWindow()
-            self.history_window.show()
-        except Exception as e:
-            QMessageBox.warning(self, "Erreur", f"Erreur lors de l'ouverture de l'historique: {str(e)}")
-            
-    def open_stores(self):
-        try:
-            from .store_management_windows import StoreManagementWindow
-            self.stores_window = StoreManagementWindow()
-            self.stores_window.show()
-        except Exception as e:
-            QMessageBox.warning(self, "Erreur", f"Erreur lors de l'ouverture de la gestion des magasins: {str(e)}")
-            
+            print(f"Error opening users window: {e}")
+    
     def open_settings(self):
+        """Open settings window"""
         try:
             from .settings_window import SettingsWindow
             self.settings_window = SettingsWindow()
             self.settings_window.show()
         except Exception as e:
-            QMessageBox.warning(self, "Erreur", f"Erreur lors de l'ouverture des paramètres: {str(e)}")
-            
-    def open_reports(self):
-        try:
-            from .reports_window import ReportsWindow
-            self.reports_window = ReportsWindow(self.user)
-            self.reports_window.show()
-        except Exception as e:
-            QMessageBox.warning(self, "Erreur", f"Erreur lors de l'ouverture des rapports: {str(e)}")
+            print(f"Error opening settings window: {e}")
+    
+    def logout(self):
+        """Logout and close window"""
+        self.close()
+        
+        # Show login window again
+        from .login_window import LoginWindow
+        from controllers.auth_controller import AuthController
+        
+        self.login_window = LoginWindow(auth_controller=AuthController())
+        self.login_window.show()

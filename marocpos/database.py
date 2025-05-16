@@ -168,7 +168,7 @@ def initialize_database():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         product_id INTEGER,
         variant_id INTEGER,
-        movement_type TEXT CHECK(movement_type IN ('in', 'out', 'adjustment')),
+        movement_type TEXT CHECK(movement_type IN ('purchase', 'sale', 'adjustment_in', 'adjustment_out', 'loss', 'damage', 'return', 'transfer_in', 'transfer_out')),
         quantity INTEGER NOT NULL,
         unit_price REAL,
         reference TEXT,
@@ -282,8 +282,9 @@ def initialize_database():
         cursor.executescript(schema)
 
         # Check if admin user exists, if not create it
-        cursor.execute("SELECT COUNT(*) FROM Users WHERE username = ?", ('MAFPOS',))
-        if cursor.fetchone()[0] == 0:
+        cursor.execute("SELECT COUNT(*) as count FROM Users WHERE username = ?", ('MAFPOS',))
+        result = cursor.fetchone()
+        if result['count'] == 0:
             current_time = DatabaseManager.get_current_datetime()
             cursor.execute("""
                 INSERT INTO Users (
