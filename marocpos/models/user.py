@@ -116,11 +116,11 @@ class User:
                 
                 if row:
                     return {
-                        'id': row[0],
-                        'username': row[1],
-                        'password': row[2],
-                        'role': row[3],
-                        'active': row[4]
+                        'id': row['id'],
+                        'username': row['username'],
+                        'password': row['password'],
+                        'role': row['role'],
+                        'active': row['active']
                     }
                 return None
             finally:
@@ -142,10 +142,10 @@ class User:
                 users = []
                 for row in cursor.fetchall():
                     users.append({
-                        'id': row[0],
-                        'username': row[1],
-                        'role': row[2],
-                        'active': row[3]
+                        'id': row['id'],
+                        'username': row['username'],
+                        'role': row['role'],
+                        'active': row['active']
                     })
                 return users
             finally:
@@ -182,9 +182,9 @@ class User:
                 cursor = conn.cursor()
                 # Check if this is the last active user
                 cursor.execute("""
-                    SELECT COUNT(*) FROM Users WHERE active = 1 AND id != ?
+                    SELECT COUNT(*) as count FROM Users WHERE active = 1 AND id != ?
                 """, (user_id,))
-                active_count = cursor.fetchone()[0]
+                active_count = cursor.fetchone()['count']
                 
                 if active_count == 0:
                     print("Cannot delete the last active user")
