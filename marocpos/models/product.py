@@ -64,7 +64,7 @@ class Product:
                 
                 # Check if columns exist, add them if they don't
                 cursor.execute("PRAGMA table_info(Products)")
-                columns = {row[1] for row in cursor.fetchall()}
+                columns = {row['name'] for row in cursor.fetchall()}
                 
                 # Add has_variants column if it doesn't exist
                 if 'has_variants' not in columns:

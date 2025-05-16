@@ -137,7 +137,7 @@ class Category:
                 """, (category_id,))
                 row = cursor.fetchone()
                 if row:
-                    return Category(id=row[0], name=row[1], description=row[2])
+                    return Category(id=row['id'], name=row['name'], description=row['description'])
                 return None
             except Exception as e:
                 print(f"Error getting category: {e}")
