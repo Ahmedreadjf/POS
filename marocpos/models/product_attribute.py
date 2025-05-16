@@ -89,7 +89,7 @@ class ProductAttribute:
                 
                 # Check if we need to add display_type to existing ProductAttributes table
                 cursor.execute("PRAGMA table_info(ProductAttributes)")
-                columns = [row[1] for row in cursor.fetchall()]
+                columns = [row['name'] for row in cursor.fetchall()]
                 
                 if 'display_type' not in columns:
                     print("Adding display_type column to ProductAttributes table...")
@@ -101,7 +101,7 @@ class ProductAttribute:
                 
                 # Check if we need to add sequence and html_color to existing ProductAttributeValues table
                 cursor.execute("PRAGMA table_info(ProductAttributeValues)")
-                columns = [row[1] for row in cursor.fetchall()]
+                columns = [row['name'] for row in cursor.fetchall()]
                 
                 if 'sequence' not in columns:
                     print("Adding sequence column to ProductAttributeValues table...")

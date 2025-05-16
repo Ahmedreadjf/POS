@@ -32,7 +32,7 @@ class User:
                 
                 # First, get existing columns
                 cursor.execute("PRAGMA table_info(Users)")
-                existing_columns = {row[1] for row in cursor.fetchall()}
+                existing_columns = {row['name'] for row in cursor.fetchall()}
 
                 # Create table if it doesn't exist
                 cursor.execute("""

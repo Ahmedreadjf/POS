@@ -44,12 +44,12 @@ class Store:
                 rows = cursor.fetchall()
                 for row in rows:
                     stores.append({
-                        "id": row[0],
-                        "name": row[1],
-                        "address": row[2],
-                        "phone": row[3],
-                        "email": row[4],
-                        "active": row[5]
+                        "id": row['id'],
+                        "name": row['name'],
+                        "address": row['address'],
+                        "phone": row['phone'],
+                        "email": row['email'],
+                        "active": row['active']
                     })
             except Exception as e:
                 print(f"Error getting stores: {e}")
